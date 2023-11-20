@@ -1,0 +1,155 @@
+import javax.swing.*;
+import java.awt.*;
+import java.awt.event.ActionEvent;
+import java.awt.event.ActionListener;
+import java.sql.*;
+
+public class StudentInformationSystem extends JFrame {
+    // JDBC URL, username, and password of MySQL server
+    private static final String URL = "jdbc:mysql://localhost:3306/sangavi";
+    private static final String USER = "root";
+    private static final String PASSWORD = "root";
+
+    // JDBC variables for opening, closing, and managing connection
+    private Connection connection;
+    private PreparedStatement preparedStatement;
+    private ResultSet resultSet;
+
+    // GUI components
+    private JTextField idField;
+    private JTextField nameField;
+    private JTextField gradeField;
+    private JTextArea studentListArea;
+
+    public StudentInformationSystem() {
+        initializeUI();
+        initializeDatabase();
+    }
+
+    private void initializeUI() {
+        setTitle("Student Information System");
+        setSize(400, 300);
+        setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
+
+        JPanel mainPanel = new JPanel();
+        mainPanel.setLayout(new BorderLayout());
+
+        JPanel inputPanel = new JPanel();
+        inputPanel.setLayout(new GridLayout(4, 2));
+
+        JLabel idLabel = new JLabel("Student ID:");
+        idField = new JTextField();
+        JLabel nameLabel = new JLabel("Student Name:");
+        nameField = new JTextField();
+        JLabel gradeLabel = new JLabel("Grade:");
+        gradeField = new JTextField();
+
+        JButton addButton = new JButton("Add Student");
+        addButton.addActionListener(new ActionListener() {
+            @Override
+            public void actionPerformed(ActionEvent e) {
+                addStudent();
+            }
+        });
+
+        inputPanel.add(idLabel);
+        inputPanel.add(idField);
+        inputPanel.add(nameLabel);
+        inputPanel.add(nameField);
+        inputPanel.add(gradeLabel);
+        inputPanel.add(gradeField);
+        inputPanel.add(addButton);
+
+        studentListArea = new JTextArea();
+        studentListArea.setEditable(false);
+
+        JScrollPane scrollPane = new JScrollPane(studentListArea);
+
+        mainPanel.add(inputPanel, BorderLayout.NORTH);
+        mainPanel.add(scrollPane, BorderLayout.CENTER);
+
+        add(mainPanel);
+
+        setLocationRelativeTo(null);
+        setVisible(true);
+    }
+
+    private void initializeDatabase() {
+        try {
+            connection = DriverManager.getConnection(URL, USER, PASSWORD);
+
+            // Creating table if not exists
+            createStudentTable();
+
+            // Display student list
+            displayStudentList();
+
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+    }
+
+    private void createStudentTable() throws SQLException {
+        String createStudentTable = "CREATE TABLE IF NOT EXISTS students (" +
+                "id INT PRIMARY KEY," +
+                "name VARCHAR(255)," +
+                "grade VARCHAR(10))";
+
+        preparedStatement = connection.prepareStatement(createStudentTable);
+        preparedStatement.execute();
+    }
+
+    private void displayStudentList() throws SQLException {
+        String selectQuery = "SELECT * FROM students";
+
+        preparedStatement = connection.prepareStatement(selectQuery);
+        resultSet = preparedStatement.executeQuery();
+
+        StringBuilder studentList = new StringBuilder("Student List:\nID\tName\t\tGrade\n");
+
+        while (resultSet.next()) {
+            int id = resultSet.getInt("id");
+            String name = resultSet.getString("name");
+            String grade = resultSet.getString("grade");
+
+            studentList.append(id).append("\t").append(name).append("\t\t").append(grade).append("\n");
+        }
+
+        studentListArea.setText(studentList.toString());
+    }
+
+    private void addStudent() {
+        String idText = idField.getText();
+        String name = nameField.getText();
+        String grade = gradeField.getText();
+
+        if (idText.isEmpty() || name.isEmpty() || grade.isEmpty()) {
+            JOptionPane.showMessageDialog(this, "ID, Name, and Grade cannot be empty", "Error", JOptionPane.ERROR_MESSAGE);
+            return;
+        }
+
+        try {
+            int id = Integer.parseInt(idText);
+
+            // Insert student record
+            String insertStudentQuery = "INSERT INTO students (id, name, grade) VALUES (?, ?, ?)";
+            preparedStatement = connection.prepareStatement(insertStudentQuery);
+            preparedStatement.setInt(1, id);
+            preparedStatement.setString(2, name);
+            preparedStatement.setString(3, grade);
+            preparedStatement.executeUpdate();
+
+            // Display updated student list
+            displayStudentList();
+
+            JOptionPane.showMessageDialog(this, "Student added successfully", "Success", JOptionPane.INFORMATION_MESSAGE);
+
+        } catch (NumberFormatException | SQLException e) {
+            JOptionPane.showMessageDialog(this, "Invalid ID format. Please enter a valid number.", "Error", JOptionPane.ERROR_MESSAGE);
+        }
+    }
+
+    public static void main(String[] args) {
+        SwingUtilities.invokeLater(() -> new StudentInformationSystem());
+    }
+}

@@ -1,0 +1,47 @@
+-- Create a sample table
+CREATE TABLE employees (
+    employee_id NUMBER PRIMARY KEY,
+    first_name VARCHAR2(50),
+    last_name VARCHAR2(50),
+    salary NUMBER
+);
+
+-- Insert some sample data
+INSERT INTO employees VALUES (1, 'John', 'Doe', 50000);
+INSERT INTO employees VALUES (2, 'Jane', 'Smith', 60000);
+INSERT INTO employees VALUES (3, 'Bob', 'Johnson', 55000);
+
+-- PL/SQL program using a cursor
+DECLARE
+    -- Declare variables to store column values
+    emp_id employees.employee_id%TYPE;
+    emp_first_name employees.first_name%TYPE;
+    emp_last_name employees.last_name%TYPE;
+    emp_salary employees.salary%TYPE;
+
+    -- Declare a cursor
+    CURSOR emp_cursor IS
+        SELECT employee_id, first_name, last_name, salary
+        FROM employees;
+
+BEGIN
+    -- Open the cursor
+    OPEN emp_cursor;
+
+    -- Fetch and display records
+    LOOP
+        FETCH emp_cursor INTO emp_id, emp_first_name, emp_last_name, emp_salary;
+        EXIT WHEN emp_cursor%NOTFOUND;
+
+        -- Display employee information
+        DBMS_OUTPUT.PUT_LINE('Employee ID: ' || emp_id);
+        DBMS_OUTPUT.PUT_LINE('Name: ' || emp_first_name || ' ' || emp_last_name);
+        DBMS_OUTPUT.PUT_LINE('Salary: ' || emp_salary);
+        DBMS_OUTPUT.PUT_LINE('---------------------------');
+    END LOOP;
+
+    -- Close the cursor
+    CLOSE emp_cursor;
+
+END;
+/

@@ -1,0 +1,77 @@
+import java.sql.*;
+import java.util.Scanner;
+
+public class embedjavasql {
+
+    public static void main(String[] args) {
+
+        try {
+            Scanner scanner = new Scanner(System.in);
+            Class.forName("com.mysql.cj.jdbc.Driver");
+
+            System.out.println("Connecting to the database");
+            Connection con = DriverManager.getConnection("jdbc:mysql://localhost:3306/dbmslab", "root", "ramkrish");
+            System.out.println("Connected successfully");
+            Statement stmt = con.createStatement();
+
+            while (true) {
+                System.out.println("1. Insert");
+                System.out.println("2. Update");
+                System.out.println("3. Delete");
+                System.out.println("4. Display");
+                System.out.println("5. Exit");
+                System.out.println("Enter choice:");
+
+                int choice = scanner.nextInt();
+
+                switch (choice) {
+                    case 1:
+                        String query1 = "INSERT INTO studdetails VALUES (101, 'dharsh', 20)";
+                        String query2 = "INSERT INTO studdetails VALUES (102, 'vonsh', 21)";
+                        String query3 = "INSERT INTO studdetails VALUES (103, 'vishal', 19)";
+                        String query4 = "INSERT INTO studdetails VALUES (104, 'nani', 22)";
+                        String query5 = "INSERT INTO studdetails VALUES (105, 'laks', 18)";
+
+                        stmt.executeUpdate(query1);
+                        stmt.executeUpdate(query2);
+                        stmt.executeUpdate(query3);
+                        stmt.executeUpdate(query4);
+                        stmt.executeUpdate(query5);
+
+                        System.out.println("Records inserted successfully");
+                        break;
+
+                    case 2:
+                        System.out.println("Enter new name:");
+                        String newName = scanner.next();
+                        String updateQuery = "UPDATE studdetails SET name = '" + newName + "' WHERE rollno = 102";
+                        stmt.executeUpdate(updateQuery);
+
+                        System.out.println("Table updated successfully");
+                        break;
+
+                    case 3:
+                        System.out.println("Enter rollno to delete:");
+                        int rollToDelete = scanner.nextInt();
+                        String deleteQuery = "DELETE FROM studdetails WHERE rollno = " + rollToDelete;
+                        stmt.executeUpdate(deleteQuery);
+                        System.out.println("Row deleted successfully");
+                        break;
+
+                    case 4:
+                        ResultSet rs = stmt.executeQuery("SELECT * FROM studdetails");
+                        while (rs.next()) {
+                            System.out.println(rs.getString(1) + "\t" + rs.getString(2) + "\t" + rs.getString(3));
+                        }
+                        break;
+
+                    case 5:
+                        System.exit(0);
+                        break;
+                }
+            }
+        } catch (Exception e) {
+            System.out.println(e.toString());
+        }
+    }
+}

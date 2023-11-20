@@ -1,0 +1,209 @@
+import javax.swing.*;
+import java.awt.*;
+import java.awt.event.ActionEvent;
+import java.awt.event.ActionListener;
+import java.sql.*;
+
+public class BankingSystemGUI extends JFrame {
+    // JDBC URL, username, and password of MySQL server
+    private static final String URL = "jdbc:mysql://localhost:3306/sangavi";
+    private static final String USER = "root";
+    private static final String PASSWORD = "root";
+
+    // JDBC variables for opening, closing, and managing connection
+    private Connection connection;
+    private PreparedStatement preparedStatement;
+    private ResultSet resultSet;
+
+    // GUI components
+    private JTextField accountNumberField;
+    private JTextField amountField;
+    private JTextArea transactionHistoryArea;
+
+    public BankingSystemGUI() {
+        initializeUI();
+        initializeDatabase();
+    }
+
+    private void initializeUI() {
+        setTitle("Banking System");
+        setSize(400, 300);
+        setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
+
+        JPanel mainPanel = new JPanel();
+        mainPanel.setLayout(new BorderLayout());
+
+        JPanel inputPanel = new JPanel();
+        inputPanel.setLayout(new GridLayout(3, 2));
+
+        JLabel accountNumberLabel = new JLabel("Account Number:");
+        accountNumberField = new JTextField();
+        JLabel amountLabel = new JLabel("Amount:");
+        amountField = new JTextField();
+
+        JButton depositButton = new JButton("Deposit");
+        depositButton.addActionListener(new ActionListener() {
+            @Override
+            public void actionPerformed(ActionEvent e) {
+                performTransaction("Deposit");
+            }
+        });
+
+        JButton withdrawButton = new JButton("Withdraw");
+        withdrawButton.addActionListener(new ActionListener() {
+            @Override
+            public void actionPerformed(ActionEvent e) {
+                performTransaction("Withdraw");
+            }
+        });
+
+        inputPanel.add(accountNumberLabel);
+        inputPanel.add(accountNumberField);
+        inputPanel.add(amountLabel);
+        inputPanel.add(amountField);
+        inputPanel.add(depositButton);
+        inputPanel.add(withdrawButton);
+
+        transactionHistoryArea = new JTextArea();
+        transactionHistoryArea.setEditable(false);
+
+        JScrollPane scrollPane = new JScrollPane(transactionHistoryArea);
+
+        mainPanel.add(inputPanel, BorderLayout.NORTH);
+        mainPanel.add(scrollPane, BorderLayout.CENTER);
+
+        add(mainPanel);
+
+        setLocationRelativeTo(null);
+        setVisible(true);
+    }
+
+    private void initializeDatabase() {
+        try {
+            connection = DriverManager.getConnection(URL, USER, PASSWORD);
+
+            // Creating table if not exists
+            createAccountTable();
+
+            // Display transaction history
+            displayTransactionHistory();
+
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+    }
+
+    private void createAccountTable() throws SQLException {
+        String createAccountTable = "CREATE TABLE IF NOT EXISTS accounts (" +
+                "id INT PRIMARY KEY AUTO_INCREMENT," +
+                "account_number VARCHAR(20)," +
+                "balance DOUBLE)";
+
+        preparedStatement = connection.prepareStatement(createAccountTable);
+        preparedStatement.execute();
+    }
+
+    private void displayTransactionHistory() throws SQLException {
+        String selectQuery = "SELECT * FROM transactions";
+
+        preparedStatement = connection.prepareStatement(selectQuery);
+        resultSet = preparedStatement.executeQuery();
+
+        StringBuilder transactionHistory = new StringBuilder("Transaction History:\nID\tAccount Number\tType\tAmount\n");
+
+        while (resultSet.next()) {
+            int id = resultSet.getInt("id");
+            String accountNumber = resultSet.getString("account_number");
+            String transactionType = resultSet.getString("type");
+            double amount = resultSet.getDouble("amount");
+
+            transactionHistory.append(id).append("\t").append(accountNumber).append("\t").append(transactionType).append("\t").append(amount).append("\n");
+        }
+
+        transactionHistoryArea.setText(transactionHistory.toString());
+    }
+
+    private void performTransaction(String transactionType) {
+        String accountNumber = accountNumberField.getText();
+        String amountText = amountField.getText();
+
+        if (accountNumber.isEmpty() || amountText.isEmpty()) {
+            JOptionPane.showMessageDialog(this, "Account Number and Amount cannot be empty", "Error", JOptionPane.ERROR_MESSAGE);
+            return;
+        }
+
+        try {
+            double amount = Double.parseDouble(amountText);
+
+            // Check if the account exists
+            if (!accountExists(accountNumber)) {
+                JOptionPane.showMessageDialog(this, "Account does not exist", "Error", JOptionPane.ERROR_MESSAGE);
+                return;
+            }
+
+            // Check if there is enough balance for withdrawal
+            if (transactionType.equals("Withdraw") && amount > getAccountBalance(accountNumber)) {
+                JOptionPane.showMessageDialog(this, "Insufficient balance for withdrawal", "Error", JOptionPane.ERROR_MESSAGE);
+                return;
+            }
+
+            // Update account balance
+            updateAccountBalance(accountNumber, transactionType, amount);
+
+            // Display updated transaction history
+            displayTransactionHistory();
+
+        } catch (NumberFormatException | SQLException e) {
+            JOptionPane.showMessageDialog(this, "Invalid amount format. Please enter a valid number.", "Error", JOptionPane.ERROR_MESSAGE);
+        }
+    }
+
+    private boolean accountExists(String accountNumber) throws SQLException {
+        String checkAccountQuery = "SELECT * FROM accounts WHERE account_number = ?";
+        preparedStatement = connection.prepareStatement(checkAccountQuery);
+        preparedStatement.setString(1, accountNumber);
+        resultSet = preparedStatement.executeQuery();
+
+        return resultSet.next();
+    }
+
+    private double getAccountBalance(String accountNumber) throws SQLException {
+        String getBalanceQuery = "SELECT balance FROM accounts WHERE account_number = ?";
+        preparedStatement = connection.prepareStatement(getBalanceQuery);
+        preparedStatement.setString(1, accountNumber);
+        resultSet = preparedStatement.executeQuery();
+
+        if (resultSet.next()) {
+            return resultSet.getDouble("balance");
+        } else {
+            return 0.0;
+        }
+    }
+
+    private void updateAccountBalance(String accountNumber, String transactionType, double amount) throws SQLException {
+        String updateBalanceQuery;
+
+        if (transactionType.equals("Deposit")) {
+            updateBalanceQuery = "UPDATE accounts SET balance = balance + ? WHERE account_number = ?";
+        } else {
+            updateBalanceQuery = "UPDATE accounts SET balance = balance - ? WHERE account_number = ?";
+        }
+
+        preparedStatement = connection.prepareStatement(updateBalanceQuery);
+        preparedStatement.setDouble(1, amount);
+        preparedStatement.setString(2, accountNumber);
+        preparedStatement.executeUpdate();
+
+        // Insert transaction record
+        String insertTransactionQuery = "INSERT INTO transactions (account_number, type, amount) VALUES (?, ?, ?)";
+        preparedStatement = connection.prepareStatement(insertTransactionQuery);
+        preparedStatement.setString(1, accountNumber);
+        preparedStatement.setString(2, transactionType);
+        preparedStatement.setDouble(3, amount);
+        preparedStatement.executeUpdate();
+    }
+
+    public static void main(String[] args) {
+        SwingUtilities.invokeLater(() -> new BankingSystemGUI());
+    }
+}
